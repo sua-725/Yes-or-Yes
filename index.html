@@ -55,9 +55,10 @@
         #img-preview { width: 100%; height: 100px; object-fit: contain; border-radius: 12px; margin-top: 10px; display: none; background: #fafafa; border: 1px solid #eee; }
 
         .btn-generate { background: var(--dark-pink); color: white; padding: 16px; width: 100%; border: none; border-radius: 14px; font-weight: bold; font-size: 16px; cursor: pointer; margin-top: 10px; }
+        .btn-generate:disabled { background: #ccc; cursor: not-allowed; }
 
         #link-display-area { margin-top: 20px; padding: 15px; background: #fdf2f5; border-radius: 15px; display: none; text-align: center; border: 1px solid var(--main-pink); }
-        #final-link { color: var(--dark-pink); text-decoration: none; font-size: 12px; font-weight: bold; display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-top: 5px; }
+        #final-link { color: var(--dark-pink); text-decoration: none; font-size: 11px; font-weight: bold; display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-top: 5px; }
 
         /* [2] 전시용 화면 UI */
         #display-ui { display: none; flex-direction: column; align-items: center; justify-content: center; width: 100%; height: 100%; position: relative; }
@@ -67,21 +68,21 @@
         #content { display: none; text-align: center; width: 100%; z-index: 10; padding: 20px; }
         .question { font-size: 26px; font-weight: 900; margin-bottom: 40px; word-break: keep-all; }
 
-        /* 편지지 스타일 결과창 */
+        /* 편지지 스타일 결과창 (수정됨: 흰 배경, 중앙 정렬) */
         #letter-card {
             display: none; background: #fff; padding: 30px 20px; border-radius: 20px;
             box-shadow: var(--shadow); width: 100%; max-width: 320px; margin: 0 auto;
-            border: 1px solid #f0f0f0; background-image: radial-gradient(#eee 1px, transparent 1px); background-size: 20px 20px;
+            border: 1px solid #f0f0f0; text-align: center;
         }
         .target-img-display { width: 100%; max-height: 200px; object-fit: contain; border-radius: 15px; margin-bottom: 20px; }
-        .reveal-msg { font-size: 16px; line-height: 1.6; color: #555; white-space: pre-wrap; word-break: break-all; font-weight: 500; }
+        .reveal-msg { font-size: 18px; line-height: 1.6; color: #555; white-space: pre-wrap; font-weight: 500; text-align: center; }
 
         /* 버튼 그룹 레이아웃 */
         .btn-group { display: flex; gap: 15px; justify-content: center; align-items: center; width: 100%; min-height: 150px; }
         
         /* 모드 1 전용 스타일 */
         .mode1-yes { padding: 25px 60px !important; font-size: 28px !important; border-radius: 60px !important; }
-        .mode1-no-small { padding: 8px 15px !important; font-size: 12px !important; border-radius: 30px !important; opacity: 0.8; }
+        .mode1-no-small { padding: 8px 12px !important; font-size: 11px !important; border-radius: 30px !important; opacity: 0.8; }
 
         /* 공통 버튼 스타일 */
         .base-btn {
@@ -104,7 +105,7 @@
         <div class="input-group"><label>3. 배경 색상</label><input type="color" id="input-bg-color" value="#fff5f8"></div>
         <div class="input-group"><label>4. 버튼 스타일</label><select id="input-style"><option value="1">1: No 버튼이 도망감</option><option value="2">2: No를 누르면 Yes로 바뀜</option><option value="3">3: No를 누를수록 Yes 커짐</option></select></div>
         <div class="input-group"><label>5. 이미지 업로드 (선택)</label><label for="input-file" class="file-label" id="file-name-label">📁 클릭하여 사진 선택</label><input type="file" id="input-file" accept="image/*" style="display: none;" onchange="handleFileUpload(this)"><img id="img-preview"></div>
-        <button class="btn-generate" onclick="generateLink()">링크 만들기</button>
+        <button class="btn-generate" id="gen-btn" onclick="generateLink()">링크 만들기</button>
         <div id="link-display-area"><p style="font-size: 13px; font-weight: bold; margin-bottom: 5px; color: #ff477e;">✅ 링크가 복사되었습니다!</p><a id="final-link" href="#" target="_blank"></a></div>
     </div>
 
@@ -126,28 +127,20 @@
     </div>
 
     <script>
+        // 기본 하트 이미지 (SVG)
         const defaultImg = "data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23ff477e'%3e%3cpath d='M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z'/%3e%3c/svg%3e";
-        let base64Image = ""; let selectedStyle = "1"; let yesScale = 1;
+        
+        let base64File = ""; let selectedStyle = "1"; let yesScale = 1;
 
         function handleFileUpload(input) {
             const file = input.files[0];
             if (file) {
-                document.getElementById('file-name-label').innerText = `🔄 압축 중...`;
                 const reader = new FileReader();
                 reader.onload = function(e) {
-                    const img = new Image();
-                    img.onload = function() {
-                        const canvas = document.createElement('canvas'); const max_size = 350; 
-                        let width = img.width; let height = img.height;
-                        if (width > height) { if (width > max_size) { height *= max_size / width; width = max_size; } } 
-                        else { if (height > max_size) { width *= max_size / height; height = max_size; } }
-                        canvas.width = width; canvas.height = height;
-                        const ctx = canvas.getContext('2d'); ctx.drawImage(img, 0, 0, width, height);
-                        base64Image = canvas.toDataURL('image/jpeg', 0.6); 
-                        document.getElementById('img-preview').src = base64Image; document.getElementById('img-preview').style.display = 'block';
-                        document.getElementById('file-name-label').innerText = `✅ ${file.name}`;
-                    };
-                    img.src = e.target.result;
+                    base64File = e.target.result.split(',')[1];
+                    document.getElementById('img-preview').src = e.target.result;
+                    document.getElementById('img-preview').style.display = 'block';
+                    document.getElementById('file-name-label').innerText = `✅ 선택됨`;
                 };
                 reader.readAsDataURL(file);
             }
@@ -156,6 +149,7 @@
         const encodeData = (data) => btoa(encodeURIComponent(JSON.stringify(data)));
         const decodeData = (str) => JSON.parse(decodeURIComponent(atob(str)));
 
+        // 전시 로직
         const urlParams = new URLSearchParams(window.location.search);
         const secret = urlParams.get('v');
 
@@ -167,24 +161,48 @@
                 document.getElementById('target-q').innerText = data.q;
                 document.getElementById('reveal-text').innerText = data.msg || "❤️";
                 if (data.bg) document.body.style.backgroundColor = data.bg;
+                
+                // 이미지가 없으면 기본 하트, 있으면 업로드된 이미지 사용
                 document.getElementById('target-img').src = data.img || defaultImg;
                 selectedStyle = data.style || "1";
             } catch (e) { document.getElementById('target-q').innerText = "링크 오류!"; }
         }
 
-        function generateLink() {
+        async function generateLink() {
             const q = document.getElementById('input-q').value;
             const msg = document.getElementById('input-msg').value;
             const bg = document.getElementById('input-bg-color').value;
             const style = document.getElementById('input-style').value;
+            const genBtn = document.getElementById('gen-btn');
+
             if (!q) return alert("질문을 입력해주세요!");
-            const secretVal = encodeData({ q: q, msg: msg, bg: bg, img: base64Image, style: style });
+            
+            genBtn.disabled = true;
+            genBtn.innerText = "이미지 업로드 중...";
+
+            let finalImgUrl = "";
+            if (base64File) {
+                try {
+                    const res = await fetch('/api/upload', {
+                        method: 'POST',
+                        body: JSON.stringify({ image: base64File })
+                    });
+                    const resData = await res.json();
+                    finalImgUrl = resData.data.url;
+                } catch (e) {
+                    console.error("업로드 에러:", e);
+                }
+            }
+
+            const secretVal = encodeData({ q, msg, bg, img: finalImgUrl, style });
             const finalUrl = `${window.location.origin}${window.location.pathname}?v=${secretVal}`;
+
             navigator.clipboard.writeText(finalUrl).then(() => {
-                const displayArea = document.getElementById('link-display-area');
-                displayArea.style.display = 'block';
-                document.getElementById('final-link').innerText = finalUrl.length > 50 ? finalUrl.substring(0, 45) + "..." : finalUrl;
+                document.getElementById('link-display-area').style.display = 'block';
+                document.getElementById('final-link').innerText = finalUrl.substring(0, 50) + "...";
                 document.getElementById('final-link').href = finalUrl;
+                genBtn.disabled = false;
+                genBtn.innerText = "링크 만들기";
                 alert("링크가 복사되었습니다!");
             });
         }
@@ -203,11 +221,17 @@
                 yesBtn.classList.add('mode1-yes');
                 noBtn.classList.add('mode1-no-small');
                 noBtn.style.position = 'fixed'; 
-                noBtn.style.left = 'calc(50% + 50px)'; 
-                noBtn.style.top = '75%';
-                noBtn.style.transition = 'none'; // 도망가는 속도를 즉각적으로 만듦
-                noBtn.addEventListener('mouseover', prankMove); 
-                noBtn.addEventListener('touchstart', (e) => { e.preventDefault(); prankMove(); });
+                noBtn.style.left = 'calc(50% + 50px)'; noBtn.style.top = '75%';
+                noBtn.style.transition = 'none';
+                const move = () => {
+                    const pad = 30;
+                    const maxX = window.innerWidth - noBtn.offsetWidth - pad; 
+                    const maxY = window.innerHeight - noBtn.offsetHeight - pad;
+                    noBtn.style.left = Math.max(pad, Math.random() * maxX) + 'px'; 
+                    noBtn.style.top = Math.max(pad, Math.random() * maxY) + 'px';
+                };
+                noBtn.addEventListener('mouseover', move);
+                noBtn.addEventListener('touchstart', (e) => { e.preventDefault(); move(); });
             } else if (selectedStyle === "2") {
                 noBtn.onclick = () => {
                     noBtn.innerText = "YES"; noBtn.style.backgroundColor = "var(--dark-pink)"; noBtn.onclick = celebrate;
@@ -215,34 +239,24 @@
             } else if (selectedStyle === "3") {
                 noBtn.onclick = () => {
                     noBtn.innerText = s3Texts[s3Idx]; s3Idx = (s3Idx + 1) % s3Texts.length;
-                    yesScale += 0.25; yesBtn.style.transform = `scale(${yesScale})`;
+                    yesScale += 0.3; yesBtn.style.transform = `scale(${yesScale})`;
                 };
             }
-        }
-
-        function prankMove() {
-            const pad = 30; // 화면 끝 여백
-            const maxX = window.innerWidth - noBtn.offsetWidth - pad; 
-            const maxY = window.innerHeight - noBtn.offsetHeight - pad;
-            // 완전히 새로운 무작위 위치로 즉시 이동
-            noBtn.style.left = Math.max(pad, Math.random() * maxX) + 'px'; 
-            noBtn.style.top = Math.max(pad, Math.random() * maxY) + 'px';
         }
 
         function celebrate() {
             const colors = ['#ff477e', '#ffafcc', '#ffea00', '#00ff00', '#00e5ff'];
             for (let i = 0; i < 100; i++) {
                 const confetti = document.createElement('div'); confetti.className = 'confetti';
-                confetti.style.left = Math.random() * 100 + 'vw'; confetti.style.top = '-10px';
+                confetti.style.left = Math.random() * 100 + 'vw';
                 confetti.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
-                confetti.style.width = Math.random() * 8 + 5 + 'px'; confetti.style.height = Math.random() * 8 + 5 + 'px';
                 confetti.style.animationDuration = (Math.random() * 2 + 1) + 's';
                 document.body.appendChild(confetti); setTimeout(() => confetti.remove(), 3000);
             }
             document.getElementById('target-btn-group').style.display = 'none';
             document.getElementById('letter-card').style.display = 'block';
             document.getElementById('target-q').innerText = "💖 너에게 전하는 메시지 💖";
-            alert("💖 YES! 그럴 줄 알았어! 💖");
+            alert("💖 YES! 역시 그럴 줄 알았어! 💖");
         }
     </script>
 </body>

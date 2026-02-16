@@ -100,7 +100,7 @@
         <div class="input-group"><label>4. 버튼 스타일</label><select id="input-style"><option value="1">1: No 버튼이 도망감</option><option value="2">2: No를 누르면 Yes로 바뀜</option><option value="3">3: No를 누를수록 Yes 커짐</option></select></div>
         <div class="input-group"><label>5. 이미지 업로드 (선택)</label><label for="input-file" class="file-label" id="file-name-label">📁 클릭하여 사진 선택</label><input type="file" id="input-file" accept="image/*" style="display: none;" onchange="handleFileUpload(this)"><img id="img-preview"></div>
         <button class="btn-generate" id="gen-btn" onclick="generateLink()">링크 만들기</button>
-        <div id="link-display-area"><p style="font-size: 13px; font-weight: bold; margin-bottom: 5px; color: #ff477e;">✅ 링크가 복사되었습니다!</p><a id="final-link" href="#" target="_blank"></a></div>
+        <div id="link-display-area"><p id="status-msg" style="font-size: 13px; font-weight: bold; margin-bottom: 5px; color: #ff477e;">✅ 링크가 생성되었습니다!</p><a id="final-link" href="#" target="_blank"></a></div>
     </div>
 
     <div id="display-ui">
@@ -177,7 +177,7 @@
             if (!q) return alert("질문을 입력해주세요!");
             
             genBtn.disabled = true;
-            genBtn.innerText = "업로드 중...";
+            genBtn.innerText = "🚀 생성 중...";
 
             let finalImgUrl = "";
             if (base64File) {
@@ -187,29 +187,37 @@
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ image: base64File })
                     });
-                    if (!res.ok) throw new Error("업로드 실패");
                     const resData = await res.json();
-                    finalImgUrl = resData.data.url;
+                    if (resData.success || resData.data) {
+                        finalImgUrl = resData.data.url;
+                    }
                 } catch (e) {
-                    alert("⚠️ 이미지 업로드에 실패했습니다. (사진 용량을 줄이거나 pc에서 다시 시도해주세요)");
-                    console.error(e);
-                    genBtn.disabled = false;
-                    genBtn.innerText = "링크 만들기";
-                    return; 
+                    console.error("업로드 에러:", e);
                 }
             }
 
             const secretVal = encodeData({ q, msg, bg, img: finalImgUrl, style });
             const finalUrl = `${window.location.origin}${window.location.pathname}?v=${secretVal}`;
 
-            navigator.clipboard.writeText(finalUrl).then(() => {
-                document.getElementById('link-display-area').style.display = 'block';
-                document.getElementById('final-link').innerText = finalUrl.substring(0, 50) + "...";
-                document.getElementById('final-link').href = finalUrl;
-                genBtn.disabled = false;
-                genBtn.innerText = "링크 만들기";
-                alert("링크가 복사되었습니다!");
-            });
+            const displayArea = document.getElementById('link-display-area');
+            const linkTag = document.getElementById('final-link');
+            const statusMsg = document.getElementById('status-msg');
+            
+            displayArea.style.display = 'block';
+            linkTag.innerText = finalUrl;
+            linkTag.href = finalUrl;
+            
+            genBtn.disabled = false;
+            genBtn.innerText = "링크 만들기";
+
+            try {
+                await navigator.clipboard.writeText(finalUrl);
+                statusMsg.innerText = "✅ 링크가 복사되었습니다!";
+                alert("링크가 복사되었습니다! 💌");
+            } catch (err) {
+                statusMsg.innerText = "✅ 생성 완료 (길게 눌러 복사)";
+                alert("링크가 생성되었습니다! 아래 주소를 길게 눌러 복사해주세요.");
+            }
         }
 
         function openLetter() {

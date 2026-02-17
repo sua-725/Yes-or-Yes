@@ -149,7 +149,7 @@
             }
         }
 
-        const encodeData = (data) => btoa(encodeURIComponent(JSON.stringify(data)));
+        const encodeData = (data) => btoa(encodeURIComponent(JSON.stringify(data)).replace(/~/g, '%7E'));
         const decodeData = (str) => JSON.parse(decodeURIComponent(atob(str)));
 
         const urlParams = new URLSearchParams(window.location.search);
